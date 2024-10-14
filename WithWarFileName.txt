@@ -1,0 +1,45 @@
+pipeline {
+    agent any
+
+    environment {
+        TARGET_DIR = '/opt/wars/' // Directory where the war file will be unzipped
+        WAR_FILE = 'crypto.war' // Name of the war file in GitLab repo
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                git branch: 'main', url: 'https://gitlab.com/52471_SAGAR/repo-for-war.git'
+            }
+        }
+
+        stage('Copy WAR file to target directory') {
+            steps {
+                script {
+                    // Copy the WAR file to the target directory, handle spaces in path with quotes
+                     sh "cd ${TARGET_DIR} && rm -rf * " ;
+                     sh "cd ${TARGET_DIR} && mkdir  crypto" ;
+                    sh "cp \"${WORKSPACE}/${WAR_FILE}\" ${TARGET_DIR}crypto"
+                }
+            }
+        }
+
+        stage('Unzip WAR file') {
+            steps {
+                script {
+                    // Unzip the WAR file in the target directory
+                    
+                     sh "cd ${TARGET_DIR}crypto  && unzip  ${WAR_FILE}" ;
+                     sh "cd ${TARGET_DIR}crypto  && rm -rf  ${WAR_FILE}";
+                     sh "cd ${TARGET_DIR}  && cp -r crypto /opt/webapps " 
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs() // Clean up workspace after pipeline execution
+        }
+    }
+}

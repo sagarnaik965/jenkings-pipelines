@@ -1,0 +1,86 @@
+pipeline {
+    agent any
+
+    environment {
+        TARGET_DIR = '/opt/wars/' // Directory where the WAR file will be unzipped
+        TEMP_DIR = '/opt/tmp/' // Temporary directory for processing WAR files
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                git branch: 'main', url: 'https://gitlab.com/52471_SAGAR/repo-for-war.git'
+            }
+        }
+
+        stage('Copy WAR file to Temp Directory') {
+            steps {
+                script {
+                    // Create the temp directory if it doesn't exist
+                    sh "mkdir -p \"${TEMP_DIR}\""
+                    
+                    // Check for .war files in the workspace
+                    def warFiles = sh(script: "ls \"${WORKSPACE}\"/*.war", returnStdout: true).trim()
+                    if (warFiles) {
+                        // Copy the WAR files to the temp directory
+                        sh "cp \"${WORKSPACE}\"/*.war \"${TEMP_DIR}\""
+                    } else {
+                        error("No WAR files found in the workspace!")
+                    }
+                }
+            }
+        }
+
+        stage('List Temp Directory Contents') {
+            steps {
+                script {
+                    sh "ls -la \"${TEMP_DIR}\"" // List contents of the temp directory
+                }
+            }
+        }
+
+        stage('Detect WAR file') {
+            steps {
+                script {
+                    // Dynamically detect the WAR file in the temporary directory
+                    def warFiles = sh(script: "ls \"${TEMP_DIR}\"/*.war", returnStdout: true).trim().tokenize('\n')
+                    if (warFiles.size() == 0) {
+                        error("No WAR file found in the temporary directory!")
+                    }
+                    // Use the first WAR file found
+                    env.WAR_FILE = warFiles[0].tokenize('/')[-1] // Get the file name
+                    env.APP_NAME = env.WAR_FILE.replace('.war', '') // Remove .war to create directory name
+                }
+            }
+        }
+
+        stage('Copy WAR file to target directory') {
+            steps {
+                script {
+                    // Copy the WAR file to the target directory
+                    sh "mkdir -p \"${TARGET_DIR}\"" // Ensure the target directory exists
+                    sh "cd \"${TARGET_DIR}\" && rm -rf *" // Clear target directory
+                    sh "cd \"${TARGET_DIR}\" && mkdir \"${APP_NAME}\"" // Create app directory
+                    sh "cp \"${TEMP_DIR}/${WAR_FILE}\" \"${TARGET_DIR}${APP_NAME}\"" // Copy the WAR file
+                }
+            }
+        }
+
+        stage('Unzip WAR file') {
+            steps {
+                script {
+                    // Unzip the WAR file in the target directory
+                    sh "cd \"${TARGET_DIR}${APP_NAME}\" && unzip \"${WAR_FILE}\""
+                    sh "cd \"${TARGET_DIR}${APP_NAME}\" && rm -rf \"${WAR_FILE}\""
+                    sh "cp -r \"${TARGET_DIR}${APP_NAME}\" /opt/webapps" // Copy to webapps directory
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs() // Clean up workspace after pipeline execution
+        }
+    }
+}
