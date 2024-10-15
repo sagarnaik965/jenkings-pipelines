@@ -9,7 +9,7 @@ pipeline {
     stages {
         stage('Checkout Code') {
             steps {
-                git branch: 'main', url: 'https://gitlab.com/52471_SAGAR/repo-for-war.git'
+                git branch: 'main', url: 'http://cdacmumbai-gitlab.cdacmumbai.in/sagarn/repo-for-wars.git' , credentialsId :'gitlab-portal'
             }
         }
 
